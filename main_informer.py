@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description='[Informer] Long Sequences Forecast
 parser.add_argument('--model', type=str, required=True, default='informer',help='model of experiment, options: [informer, informerstack, informerlight(TBD)]')
 
 parser.add_argument('--data', type=str, required=True, default='ETTh1', help='data')
-parser.add_argument('--root_path', type=str, default='./data/ETT/', help='root path of the data file')
+parser.add_argument('--root_path', type=str, default='./data/ETDataset/ETT-small', help='root path of the data file')
 parser.add_argument('--data_path', type=str, default='ETTh1.csv', help='data file')    
 parser.add_argument('--features', type=str, default='M', help='forecasting task, options:[M, S, MS]; M:multivariate predict multivariate, S:univariate predict univariate, MS:multivariate predict univariate')
 parser.add_argument('--target', type=str, default='OT', help='target feature in S or MS task')
@@ -59,7 +59,6 @@ parser.add_argument('--use_multi_gpu', action='store_true', help='use multiple g
 parser.add_argument('--devices', type=str, default='0,1,2,3',help='device ids of multile gpus')
 
 args = parser.parse_args()
-
 args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
 
 if args.use_gpu and args.use_multi_gpu:
@@ -87,27 +86,34 @@ args.s_layers = [int(s_l) for s_l in args.s_layers.replace(' ','').split(',')]
 args.detail_freq = args.freq
 args.freq = args.freq[-1:]
 
-print('Args in experiment:')
-print(args)
+def main(args):
+    print('Args in experiment:')
+    print(args)
+    Exp = Exp_Informer
 
-Exp = Exp_Informer
+    for ii in range(args.itr):
+        # setting record of experiments
+        setting = '{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_at{}_fc{}_eb{}_dt{}_mx{}_{}_{}'.format(args.model, args.data, args.features,
+                    args.seq_len, args.label_len, args.pred_len,
+                    args.d_model, args.n_heads, args.e_layers, args.d_layers, args.d_ff, args.attn, args.factor,
+                    args.embed, args.distil, args.mix, args.des, ii)
 
-for ii in range(args.itr):
-    # setting record of experiments
-    setting = '{}_{}_ft{}_sl{}_ll{}_pl{}_dm{}_nh{}_el{}_dl{}_df{}_at{}_fc{}_eb{}_dt{}_mx{}_{}_{}'.format(args.model, args.data, args.features, 
-                args.seq_len, args.label_len, args.pred_len,
-                args.d_model, args.n_heads, args.e_layers, args.d_layers, args.d_ff, args.attn, args.factor, 
-                args.embed, args.distil, args.mix, args.des, ii)
+        exp = Exp(args) # set experiments
+        print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+        exp.train(setting)
 
-    exp = Exp(args) # set experiments
-    print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-    exp.train(setting)
-    
-    print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-    exp.test(setting)
+        print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+        exp.test(setting)
 
-    if args.do_predict:
-        print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-        exp.predict(setting, True)
+        if args.do_predict:
+            print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+            exp.predict(setting, True)
 
-    torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
+
+if __name__ == '__main__':
+    args.model = 'informer'
+    args.data = 'ETTh1'
+    args.freq = 'h'
+    args.attn = 'prob'
+    main()
